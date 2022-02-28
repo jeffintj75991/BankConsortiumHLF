@@ -238,23 +238,6 @@ chaincodeInvoke() {
 
 # chaincodeInvoke
 
-chaincodeInvokeDeleteAsset() {
-    setGlobalsForPeer0UBS
-
-    # Create Car
-    peer chaincode invoke -o localhost:7050 \
-        --ordererTLSHostnameOverride orderer.bank.com \
-        --tls $CORE_PEER_TLS_ENABLED \
-        --cafile $ORDERER_CA \
-        -C $CHANNEL_NAME -n ${CC_NAME}  \
-        --peerAddresses localhost:7051 --tlsRootCertFiles $PEER0_UBS_CA \
-        --peerAddresses localhost:9051 --tlsRootCertFiles $PEER0_CITI_CA   \
-        -c '{"function": "DeleteCarById","Args":["2"]}'
-
-}
-
-# chaincodeInvokeDeleteAsset
-
 chaincodeQuery() {
     setGlobalsForPeer0UBS
     # setGlobalsForUBS
