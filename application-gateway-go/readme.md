@@ -1,0 +1,3 @@
+Start by
+
+go run .
