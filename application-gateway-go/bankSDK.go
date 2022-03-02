@@ -85,7 +85,12 @@ func createBankTrxnsCall(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		fmt.Fprintf(w, "Kindly enter data in correct format")
 	}
-	createBankTrxns(contract, string(reqBody))
+
+	returnString := createBankTrxns(contract, string(reqBody))
+
+	w.WriteHeader(http.StatusCreated)
+
+	json.NewEncoder(w).Encode(returnString)
 }
 
 func getBankTxnByIdCall(w http.ResponseWriter, r *http.Request) {
@@ -122,11 +127,16 @@ func getBankTxnByIdCall(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		fmt.Fprintf(w, "Kindly enter data in correct format")
 	}
-	getBankTxnById(contract, string(reqBody))
+
+	returnString := getBankTxnById(contract, string(reqBody))
+
+	w.WriteHeader(http.StatusCreated)
+
+	json.NewEncoder(w).Encode(returnString)
 }
 
 // Submit a transaction synchronously, blocking until it has been committed to the ledger.
-func createBankTrxns(contract *client.Contract, reqBody string) {
+func createBankTrxns(contract *client.Contract, reqBody string) string {
 	fmt.Printf("Submit Transaction: createBankTrxns \n")
 	fmt.Println("reqBody:", reqBody)
 	_, err := contract.SubmitTransaction("CreateBankTrxns", reqBody)
@@ -143,10 +153,11 @@ func createBankTrxns(contract *client.Contract, reqBody string) {
 	}
 
 	fmt.Printf("*** Transaction committed successfully\n")
+	return "*** Transaction committed successfully****"
 }
 
 // Evaluate a transaction by assetID to query ledger state.
-func getBankTxnById(contract *client.Contract, reqBody string) {
+func getBankTxnById(contract *client.Contract, reqBody string) string {
 	fmt.Printf("Evaluate Transaction: GetBankTxnById\n")
 
 	evaluateResult, err := contract.EvaluateTransaction("GetBankTxnById", reqBody)
@@ -156,6 +167,7 @@ func getBankTxnById(contract *client.Contract, reqBody string) {
 	result := formatJSON(evaluateResult)
 
 	fmt.Printf("*** Result:%s\n", result)
+	return result
 }
 
 // newGrpcConnection creates a gRPC connection to the Gateway server.
