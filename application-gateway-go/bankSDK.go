@@ -13,13 +13,17 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"path"
 	"time"
 
+	"github.com/gorilla/mux"
 	"github.com/hyperledger/fabric-gateway/pkg/client"
 	"github.com/hyperledger/fabric-gateway/pkg/identity"
+	gwproto "github.com/hyperledger/fabric-protos-go/gateway"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/status"
 )
 
 const (
@@ -37,6 +41,20 @@ const (
 func main() {
 	log.Println("============ application-golang starts ============")
 
+	// The gRPC client connection should be shared by all Gateway connections to this endpoint
+
+	router := mux.NewRouter().StrictSlash(true)
+
+	router.HandleFunc("/createBank", createBankTrxnsCall).Methods("POST")
+	router.HandleFunc("/getBankTxnById", getBankTxnByIdCall).Methods("POST")
+	log.Fatal(http.ListenAndServe(":8082", router))
+
+}
+
+func createBankTrxnsCall(w http.ResponseWriter, r *http.Request) {
+	//contract := createConnection()
+
+	/////////////////////////
 	// The gRPC client connection should be shared by all Gateway connections to this endpoint
 	clientConnection := newGrpcConnection()
 	defer clientConnection.Close()
@@ -62,21 +80,64 @@ func main() {
 
 	network := gateway.GetNetwork(channelName)
 	contract := network.GetContract(chaincodeName)
+	/////////////////////////////
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		fmt.Fprintf(w, "Kindly enter data in correct format")
+	}
+	createBankTrxns(contract, string(reqBody))
+}
 
-	fmt.Println("CreateBankTrxns:")
-	createBankTrxns(contract)
+func getBankTxnByIdCall(w http.ResponseWriter, r *http.Request) {
+	//contract := createConnection()
+	////////////////////////////////////////
+	// The gRPC client connection should be shared by all Gateway connections to this endpoint
+	clientConnection := newGrpcConnection()
+	defer clientConnection.Close()
 
-	fmt.Println("GetBankTxnById:")
-	getBankTxnById(contract)
+	id := newIdentity()
+	sign := newSign()
 
-	log.Println("============ application-golang ends ============")
+	// Create a Gateway connection for a specific client identity
+	gateway, err := client.Connect(
+		id,
+		client.WithSign(sign),
+		client.WithClientConnection(clientConnection),
+		// Default timeouts for different gRPC calls
+		client.WithEvaluateTimeout(5*time.Second),
+		client.WithEndorseTimeout(15*time.Second),
+		client.WithSubmitTimeout(5*time.Second),
+		client.WithCommitStatusTimeout(1*time.Minute),
+	)
+	if err != nil {
+		panic(err)
+	}
+	defer gateway.Close()
+
+	network := gateway.GetNetwork(channelName)
+	contract := network.GetContract(chaincodeName)
+	/////////////////////////////////////////
+
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		fmt.Fprintf(w, "Kindly enter data in correct format")
+	}
+	getBankTxnById(contract, string(reqBody))
 }
 
 // Submit a transaction synchronously, blocking until it has been committed to the ledger.
-func createBankTrxns(contract *client.Contract) {
+func createBankTrxns(contract *client.Contract, reqBody string) {
 	fmt.Printf("Submit Transaction: createBankTrxns \n")
+	fmt.Println("reqBody:", reqBody)
+	_, err := contract.SubmitTransaction("CreateBankTrxns", reqBody)
+	//_, err := contract.SubmitTransaction("CreateBankTrxns", "{\"transactionId\":\"TXN00000003\",\"country\":\"Indonesia\",\"currency\":\"Rupiah\",\"amount\":\"200000\", \"origin\":\"US\",\"date\":\"29-09-2021\"}")
 
-	_, err := contract.SubmitTransaction("CreateBankTrxns", "{\"transactionId\":\"TXN00000003\",\"country\":\"Indonesia\",\"currency\":\"Rupiah\",\"amount\":\"200000\", \"origin\":\"US\",\"date\":\"29-09-2021\"}")
+	statusErr := status.Convert(err)
+	for _, detail := range statusErr.Details() {
+		errDetail := detail.(*gwproto.ErrorDetail)
+		fmt.Printf("Error from endpoint: %s, mspId: %s, message: %s\n", errDetail.Address, errDetail.MspId, errDetail.Message)
+	}
+
 	if err != nil {
 		panic(fmt.Errorf("failed to submit transaction: %w", err))
 	}
@@ -85,10 +146,10 @@ func createBankTrxns(contract *client.Contract) {
 }
 
 // Evaluate a transaction by assetID to query ledger state.
-func getBankTxnById(contract *client.Contract) {
+func getBankTxnById(contract *client.Contract, reqBody string) {
 	fmt.Printf("Evaluate Transaction: GetBankTxnById\n")
 
-	evaluateResult, err := contract.EvaluateTransaction("GetBankTxnById", "TXN00000003")
+	evaluateResult, err := contract.EvaluateTransaction("GetBankTxnById", reqBody)
 	if err != nil {
 		panic(fmt.Errorf("failed to evaluate transaction: %w", err))
 	}
