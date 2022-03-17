@@ -35,7 +35,7 @@ CHANNEL_NAME="mychannel"
 CC_RUNTIME_LANGUAGE="node"
 VERSION="1"
 SEQUENCE="1"
-CC_SRC_PATH="./artifacts/src/github.com/banktrxn/"
+CC_SRC_PATH="./artifacts/src/github.com/banktrxnN/"
 CC_NAME="banktrax"
 
 packageChaincode() {
